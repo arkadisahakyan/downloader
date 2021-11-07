@@ -2,39 +2,52 @@ package am.arkadysahakyan.downloader;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 import java.net.URLConnection;
 
+/**
+ * @author Arkady Sahakyan
+ */
 public class FileDownloader implements Runnable {
 
-    private final int[] buffer;
+    private final byte[] buffer;
 
-    private final URL target;
+    private final URLConnection resourceConnection;
 
-    private int next = 0;
+    private boolean pause = false;
 
-    public FileDownloader(int[] buffer, URL target) {
+    public FileDownloader(byte[] buffer, URLConnection resourceConnection) {
         this.buffer = buffer;
-        this.target = target;
+        this.resourceConnection = resourceConnection;
     }
-
 
     @Override
     public void run() {
-        URLConnection urlConnection = null;
-        try {
-            urlConnection = target.openConnection();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        try(InputStream in = urlConnection.getInputStream()) {
+        try(InputStream in = resourceConnection.getInputStream()) {
+            int nextPtr = 0;
             int data;
             while ((data = in.read()) != -1) {
-                buffer[next++] = data;
+                while (pause) {
+                    synchronized (this) {
+                        try {
+                            wait();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                }
+                buffer[nextPtr++] = (byte) data;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.print(e);
         }
+    }
+
+    public synchronized void dcontinue() {
+        pause = false;
+        notify();
+    }
+
+    public synchronized void dpause() {
+        pause = true;
     }
 }
