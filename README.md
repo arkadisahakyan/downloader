@@ -8,7 +8,6 @@ URL file = new URL("https://www.wikipedia.org/portal/wikipedia.org/assets/img/Wi
 // Get a connection to the resource
 URLConnection connection = file.openConnection();
 // Allocate memory for the resource
-
 byte[] buffer = new byte[connection.getContentLength()];
 
 // Create a task and execute (download). The file data will be stored in the buffer
