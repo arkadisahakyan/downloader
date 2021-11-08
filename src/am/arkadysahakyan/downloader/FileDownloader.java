@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.net.URLConnection;
 
 /**
+ * Downloads a file from the Internet.
  * @author Arkady Sahakyan
  */
 public class FileDownloader implements Runnable {
@@ -13,7 +14,7 @@ public class FileDownloader implements Runnable {
 
     private final URLConnection resourceConnection;
 
-    private boolean pause = false;
+    private State state = State.PROCESS;
 
     public FileDownloader(byte[] buffer, URLConnection resourceConnection) {
         this.buffer = buffer;
@@ -26,7 +27,8 @@ public class FileDownloader implements Runnable {
             int nextPtr = 0;
             int data;
             while ((data = in.read()) != -1) {
-                while (pause) {
+                if (State.STOPPED.equals(state)) return;
+                while (State.PAUSED.equals(state)) {
                     synchronized (this) {
                         try {
                             wait();
@@ -42,12 +44,48 @@ public class FileDownloader implements Runnable {
         }
     }
 
-    public synchronized void dcontinue() {
-        pause = false;
+    public synchronized void continueProcess() {
+        state = State.PROCESS;
         notify();
     }
 
-    public synchronized void dpause() {
-        pause = true;
+    public synchronized void pauseProcess() {
+        state = State.PAUSED;
+    }
+
+    public synchronized void stopProcess() {
+        state = State.STOPPED;
+    }
+
+    public Status getStatus() {
+        int passed = buffer.length;
+        int left = resourceConnection.getContentLength() - passed;
+        return new Status(passed, left);
+    }
+
+    public State getState() {
+        return state;
+    }
+
+    private static class Status {
+        private final int passed;
+        private final int left;
+
+        public Status(int passed, int left) {
+            this.passed = passed;
+            this.left = left;
+        }
+
+        public int getPassed() {
+            return passed;
+        }
+
+        public int getLeft() {
+            return left;
+        }
+    }
+
+    public static enum State {
+        PROCESS, PAUSED, STOPPED
     }
 }
